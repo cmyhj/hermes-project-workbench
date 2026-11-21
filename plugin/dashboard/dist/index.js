@@ -908,6 +908,27 @@
         : null);
   }
 
+  function ProjectFilesPanel(props) {
+    var current = props.project;
+    return h("div", { className: NS + "-files" },
+      h("div", { className: NS + "-files-head" },
+        h("h3", { className: NS + "-panel-title" }, "项目文件夹"),
+        h("span", { className: NS + "-badge-ok" }, current.archived ? "归档只读" : "活动"),
+        h("span", { className: NS + "-files-dir" }, current.dir_path || "（后端未提供目录）"),
+        props.downloadError ? h("span", { className: NS + "-err" }, props.downloadError) : null),
+      current.dir_path ? h("div", { className: NS + "-files-body" },
+        h("div", { className: NS + "-filetree" }, h(DirNode, {
+          key: current.id, projectId: current.id, path: "", name: current.dir_name || current.name,
+          depth: 0, activeFile: props.activeFile && props.activeFile.path, onOpen: props.onOpen,
+        })),
+        h("div", { className: NS + "-filepane" }, props.activeFile
+          ? h(FilePreview, { key: props.activeFile.path, projectId: current.id, entry: props.activeFile,
+            onClose: function () { props.onOpen(null); }, onDownload: props.onDownload })
+          : h("div", { className: NS + "-fhint " + NS + "-filepane-empty" },
+            "左侧展开目录并点一个文件：文本/markdown/json 按纯文本显示，图片内联预览，PDF 交给浏览器阅读器；Office/压缩包等只提供下载。")))
+        : h("p", { className: NS + "-err" }, "后端未提供项目目录（需重启一次 dashboard 以加载新版 plugin_api.py）"));
+  }
+
   // ---------------------------------------------------------------- 页面
   /** 窄屏判定：抽屉模式必须自己管，CSS 媒体查询拿不到「是否该渲染成抽屉」这个结构决策。 */
   function useNarrow(breakpoint) {
@@ -927,7 +948,7 @@
     var [loadError, setLoadError] = useState(null);
     var [selectedId, setSelectedId] = useState(null);
     // 「隐藏已归档」默认勾选 = 只看 Active 根下的项目。取消勾选才请求 include_archived=true，
-    // 归档根（Backup 归档根、课程库根）里的项目由后端按**物理位置**标 archived。
+    // 归档根（E:/Backups/ProjectArchives、课程库）里的项目由后端按**物理位置**标 archived。
     var [onlyOpen, setOnlyOpen] = useState(true);
 
     var [link, setLink] = useState(null);
@@ -942,6 +963,7 @@
     // —— 项目文件夹面板（懒加载）+ 新建/纳管面板
     // 这里只存「当前展开到哪、预览选中哪个文件」这类 UI 状态；目录内容由 DirNode 自己按需请求。
     var [filesOpen, setFilesOpen] = useState(false);
+    var [ganttOpen, setGanttOpen] = useState(true);
     var [activeFile, setActiveFile] = useState(null);   // 选中的 entry 对象
     var [createOpen, setCreateOpen] = useState(false);
     var [createMode, setCreateMode] = useState("new");
@@ -1139,6 +1161,9 @@
           : "");
       // 一个项目都没有时仍然要能新建/纳管 —— 否则第一次使用就被空态卡死
       return h("div", { className: NS + "-root" },
+        h("aside", { className: NS + "-side" },
+          h("div", { className: NS + "-side-head" }, h("h2", { className: NS + "-side-title" }, "项目"), h("span", { className: NS + "-side-count" }, "0")),
+          h("button", { className: NS + "-btn " + NS + "-btn-primary " + NS + "-sidebar-create", onClick: function () { setCreateOpen(true); setCreateMode("new"); refreshCreatable(); } }, "新建/纳管")),
         h(Empty, {
           title: onlyOpen
             ? "活动根下没有可显示的 .pm 项目"
@@ -1278,6 +1303,9 @@
               h("span", { className: NS + "-projnum" },
                 p.counts.done + "/" + p.counts.total));
           })),
+        !current.archived ? h("button", { className: NS + "-btn " + NS + "-btn-primary " + NS + "-sidebar-create",
+          onClick: function () { var next = !createOpen; setCreateOpen(next); setCreateMode("new"); if (next) refreshCreatable(); }
+        }, createOpen ? "收起新建" : "新建/纳管") : null,
         h("label", { className: NS + "-toggle" },
           h("input", {
             type: "checkbox", checked: onlyOpen,
@@ -1356,11 +1384,26 @@
 
         chatError ? h("p", { className: NS + "-err" }, "对话组件不可用：" + chatError) : null,
 
-        h(Gantt, {
-          tasks: current.tasks,
-          milestones: current.milestones,
-          onPick: function (t) { setFocusTask(t); },
-        }),
+        h("section", { className: NS + "-content-section " + NS + "-gantt-section" },
+          h("div", { className: NS + "-section-head" },
+            h("h2", { className: NS + "-section-title" }, "甘特图"),
+            h("button", { className: NS + "-btn " + NS + "-btn-quiet", "aria-expanded": ganttOpen,
+              onClick: function () { setGanttOpen(!ganttOpen); }
+            }, ganttOpen ? "收起甘特图" : "展开甘特图")),
+          ganttOpen ? h(React.Fragment, null,
+            h("div", { className: NS + "-recent-todos" },
+              h("h3", { className: NS + "-panel-title" }, "近期未完成待办"),
+              (current.tasks || []).filter(function (t) { return t.status_group !== "done"; })
+                .slice().sort(function (a, b) {
+                  var ad = a.due || "9999-99-99", bd = b.due || "9999-99-99";
+                  return ad < bd ? -1 : ad > bd ? 1 : String(a.title || "").localeCompare(String(b.title || ""), "zh-CN");
+                }).slice(0, 8).map(function (t) {
+                  return h("button", { key: t.id || t.title, className: NS + "-todo-row", onClick: function () { setFocusTask(t); } },
+                    h(StatusPill, { group: t.status_group, status: t.status }),
+                    h("span", { className: NS + "-todo-title" }, t.title),
+              h("time", { className: NS + "-todo-due" }, t.due || "无截止日"));
+                })),
+            h(Gantt, { tasks: current.tasks, milestones: current.milestones, onPick: function (t) { setFocusTask(t); } })) : null),
 
         focusTask ? h("div", { className: NS + "-focus" },
           h("div", { className: NS + "-focus-head" },
@@ -1387,6 +1430,13 @@
             focusTask.tags && focusTask.tags.length
               ? h("dd", null, focusTask.tags.join("、")) : null)) : null,
 
+        filesOpen ? h(ProjectFilesPanel, { project: current, activeFile: activeFile, onOpen: setActiveFile,
+          downloadError: downloadError, onDownload: function (meta) {
+            setDownloadError(null);
+            downloadFile(current.id, meta).catch(function (e) { setDownloadError("下载失败：" + String(e && e.message || e)); });
+          } }) : null,
+        h("section", { className: NS + "-content-section " + NS + "-zotero-section" },
+        h("h2", { className: NS + "-section-title" }, "Zotero"),
         h(ZoteroPanel, {
           project: current,
           link: link,
@@ -1402,16 +1452,17 @@
             // zotero:// 交给系统 handler；同时给个可见反馈，避免用户以为没反应
             try { window.location.href = p.zotero_uri; } catch (e) { /* handler 缺失时忽略 */ }
           },
-        })),
+        }))),
 
       chatColumn,
 
       // —— 新建 / 纳管（预览 → 确认 → 读回校验）。Archived 项目不给写入口。
       // 放在 root 网格里整行铺开：塞进 section.wbp-main 会被压成 289px 而且与聊天栏重叠。
-      (createOpen || filesOpen)
-        ? h("div", { key: "panels", className: NS + "-panels" },
-          createOpen
-            ? h(ProjectCreatePanel, {
+      createOpen
+        ? h("div", { key: "panels", className: NS + "-modal-layer", role: "dialog",
+          "aria-modal": true, "aria-label": "新建/纳管项目" },
+          h("div", { className: NS + "-modal-backdrop", onClick: function () { setCreateOpen(false); } }),
+          h(ProjectCreatePanel, {
             key: "create",
             mode: createMode,
             templates: (creatable && creatable.templates) || null,
@@ -1426,50 +1477,7 @@
                 setFilesOpen(true);
               }
             },
-          })
-            : null,
-
-          // —— 项目文件夹 + 预览
-          filesOpen
-            ? h("div", { className: NS + "-files" },
-            h("div", { className: NS + "-files-head" },
-              h("h3", { className: NS + "-panel-title" }, "项目文件夹"),
-              h("span", { className: NS + "-badge-ok" },
-                current.archived ? "归档只读" : "活动"),
-              h("span", { className: NS + "-files-dir" }, current.dir_path || "（后端未提供目录）"),
-              downloadError ? h("span", { className: NS + "-err" }, downloadError) : null),
-            current.dir_path
-              ? h("div", { className: NS + "-files-body" },
-                h("div", { className: NS + "-filetree" },
-                  h(DirNode, {
-                    key: current.id,
-                    projectId: current.id,
-                    path: "",
-                    name: current.dir_name || current.name,
-                    depth: 0,
-                    activeFile: activeFile && activeFile.path,
-                    onOpen: function (e) { setActiveFile(e); },
-                  })),
-                h("div", { className: NS + "-filepane" },
-                  activeFile
-                    ? h(FilePreview, {
-                      key: activeFile.path,
-                      projectId: current.id,
-                      entry: activeFile,
-                      onClose: function () { setActiveFile(null); },
-                      onDownload: function (meta) {
-                        setDownloadError(null);
-                        downloadFile(current.id, meta).catch(function (e) {
-                          setDownloadError("下载失败：" + String(e && e.message || e));
-                        });
-                      },
-                    })
-                    : h("div", { className: NS + "-fhint " + NS + "-filepane-empty" },
-                      "左侧展开目录并点一个文件：文本/markdown/json 按纯文本显示，" +
-                      "图片内联预览，PDF 交给浏览器阅读器；Office/压缩包等只提供下载。")))
-                : h("p", { className: NS + "-err" },
-                  "后端未提供项目目录（需重启一次 dashboard 以加载新版 plugin_api.py）"))
-            : null)
+          }))
         : null,
 
       // —— 窄屏抽屉：铺在页面上，关闭后回到原来的甘特图，不挤压既有布局

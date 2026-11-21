@@ -1,0 +1,1072 @@
+/*
+ * wb-project — 项目区样式。
+ *
+ * 全部颜色/背景走 Dashboard 主题变量（--color-*），不写死调色板，
+ * 主题切换（nous-blue / 用户自带主题）自动跟随。唯一硬编码的是三个状态色
+ * 与「今天线」的红色，它们在深/浅两种底色上都保持可辨识。
+ *
+ * 作用域：所有选择器都挂在 .wbp-root 下，避免污染其它页签。
+ */
+
+.wbp-root {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  padding: 16px 4px 32px;
+  color: var(--color-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------- 左栏 */
+.wbp-side {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-card);
+  padding: 10px 10px 12px;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+
+.wbp-side-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 2px 4px 8px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 6px;
+}
+
+.wbp-side-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.wbp-side-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-projlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wbp-projitem {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) 34px;
+  grid-template-areas: "dot name num" "dot prog prog";
+  align-items: center;
+  gap: 0 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm, 5px);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.wbp-projitem:hover { background: var(--color-secondary); }
+
+.wbp-projitem-active {
+  background: var(--color-accent);
+  border-color: var(--color-border);
+}
+
+.wbp-projdot {
+  grid-area: dot;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0.9;
+  align-self: start;
+  margin-top: 6px;
+}
+
+.wbp-projname {
+  grid-area: name;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* 项目名可能是长中文 + 日期前缀，不给满行宽会和进度条挤在一起 */
+  font-size: 12.5px;
+}
+
+.wbp-projnum {
+  grid-area: num;
+  justify-self: end;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-projprog {
+  grid-area: prog;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.wbp-projprogbar {
+  display: block;
+  height: 100%;
+  background: #3f9c6d;
+  border-radius: 2px;
+}
+
+.wbp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px;
+  font-size: 11.5px;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+}
+
+.wbp-toggle input { accent-color: var(--color-foreground); }
+
+/* 项目名后面的小角标：归档来源 / 未真正迁移。
+   和名字同一行，不换行、不吃高度；两个角标都只是「提示」，详细信息在 title 里。 */
+.wbp-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.wbp-tag-archive {
+  color: var(--color-muted-foreground);
+  border-color: var(--color-border);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.wbp-tag-warn {
+  color: #b4761f;
+  border-color: color-mix(in srgb, #b4761f 45%, transparent);
+  background: color-mix(in srgb, #b4761f 12%, transparent);
+}
+
+/* 归档根清单：让「归档在哪」在界面上是可见事实，而不是藏在代码里的常量 */
+.wbp-rootlist {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 8px 4px 0;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wbp-rootitem {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+  min-width: 0;
+}
+
+.wbp-rootkind {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  padding: 0 3px;
+  border-radius: 2px;
+  border: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+}
+
+.wbp-rootlabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wbp-rootitem-missing .wbp-rootlabel,
+.wbp-rootitem-missing .wbp-rootkind { opacity: 0.55; }
+
+.wbp-rootmiss {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: #b4761f;
+}
+
+/* 页头里的异常说明（Active 下 pm 标了 archived=true） */
+.wbp-warnline {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #b4761f;
+  max-width: 68ch;
+}
+
+
+/* ---------------------------------------------------------------- 右栏 */
+.wbp-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.wbp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.wbp-head-main { min-width: 0; }
+
+.wbp-title {
+  margin: 0 0 2px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.wbp-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.wbp-stats {
+  display: flex;
+  gap: 18px;
+  align-items: flex-end;
+}
+
+.wbp-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.wbp-stat-num {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.wbp-stat-label {
+  font-size: 10.5px;
+  color: var(--color-muted-foreground);
+  letter-spacing: 0.04em;
+}
+
+/* ---------------------------------------------------------------- 甘特 */
+.wbp-gantt-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-card);
+  padding: 10px 12px 8px;
+  /* 窄屏时甘特图保持最小可读宽度，靠容器横向滚动，而不是压缩到不可读 */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.wbp-gantt {
+  display: block;
+  min-width: 460px;
+  overflow: visible;
+}
+
+/* 滚动提示：只在真的溢出时由 JS 不参与，靠 CSS 的 scrollbar 颜色可读 */
+.wbp-gantt-wrap { scrollbar-width: thin; }
+
+/* 行标签用主题前景色；SVG 内 currentColor 需要显式给定 */
+.wbp-gantt text { fill: var(--color-foreground); }
+
+.wbp-rowlabel {
+  font-size: 10.5px;
+  cursor: pointer;
+  opacity: 0.88;
+}
+
+.wbp-rowlabel:hover { opacity: 1; text-decoration: underline; }
+
+.wbp-due {
+  font-size: 10px;
+  fill: var(--color-foreground);
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
+}
+
+.wbp-nodate {
+  font-size: 10px;
+  fill: var(--color-muted-foreground);
+  opacity: 0.9;
+}
+
+.wbp-tick {
+  font-size: 10px;
+  fill: var(--color-muted-foreground);
+  opacity: 0.95;
+}
+
+.wbp-legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.wbp-legend-today {
+  display: inline-block;
+  width: 2px;
+  height: 11px;
+  background: #e05252;
+  border-radius: 1px;
+}
+
+.wbp-legend-ms {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.wbp-legend-dashed {
+  display: inline-block;
+  width: 16px;
+  height: 8px;
+  border: 1px dashed currentColor;
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.wbp-legend-note { opacity: 0.85; }
+
+.wbp-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* 点开某条任务后的详情条 */
+.wbp-focus {
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-foreground);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-secondary);
+  padding: 10px 12px;
+}
+
+.wbp-focus-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+}
+
+.wbp-focus-head strong { font-weight: 600; }
+
+.wbp-prio {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-kv {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 11.5px;
+}
+
+.wbp-kv dt {
+  color: var(--color-muted-foreground);
+  font-weight: 400;
+}
+
+.wbp-kv dd { margin: 0; }
+
+/* ---------------------------------------------------------------- 药丸/徽标 */
+.wbp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  white-space: nowrap;
+}
+
+.wbp-badge-ok,
+.wbp-badge-warn {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.wbp-badge-ok { color: #3f9c6d; }
+.wbp-badge-warn { color: #d98d2b; }
+
+/* ---------------------------------------------------------------- 论文面板 */
+.wbp-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-card);
+  padding: 12px 14px 14px;
+}
+
+.wbp-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 10px;
+}
+
+.wbp-panel-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-panel-col {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46ch;
+}
+
+.wbp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.wbp-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 9px;
+  font-size: 12px;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  border: 1px solid var(--color-input);
+  border-radius: var(--radius-sm, 5px);
+}
+
+.wbp-input::placeholder { color: var(--color-muted-foreground); }
+
+.wbp-input:focus {
+  outline: none;
+  border-color: var(--color-ring);
+}
+
+.wbp-count {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wbp-papers {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wbp-paper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm, 5px);
+  color: inherit;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.wbp-paper:hover,
+.wbp-paper:focus-visible {
+  background: var(--color-secondary);
+  border-left-color: var(--color-foreground);
+  outline: none;
+}
+
+.wbp-paper-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.wbp-paper-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-paper-year {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+  opacity: 0.8;
+}
+
+.wbp-paper-venue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 34ch;
+}
+
+/* ---------------------------------------------------------------- 表单 */
+.wbp-pickers {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.wbp-field-label {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-select {
+  flex: 1;
+  min-width: 200px;
+  max-width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  border: 1px solid var(--color-input);
+  border-radius: var(--radius-sm, 5px);
+}
+
+.wbp-btn {
+  padding: 5px 11px;
+  font-size: 12px;
+  border-radius: var(--radius-sm, 5px);
+  border: 1px solid var(--color-border);
+  background: var(--color-secondary);
+  color: var(--color-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+
+.wbp-btn:hover { background: var(--color-accent); }
+
+.wbp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wbp-btn-primary {
+  background: var(--color-foreground);
+  color: var(--color-background);
+  border-color: var(--color-foreground);
+  font-weight: 500;
+}
+
+.wbp-btn-primary:hover { opacity: 0.88; background: var(--color-foreground); }
+
+.wbp-btn-quiet {
+  margin-left: auto;
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-muted-foreground);
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.wbp-btn-quiet:hover {
+  background: var(--color-secondary);
+  color: var(--color-foreground);
+}
+
+.wbp-err {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: #e05252;
+}
+
+.wbp-hint {
+  padding: 14px 4px;
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+}
+
+/* ---------------------------------------------------------------- 空状态 */
+.wbp-empty {
+  padding: 18px 4px;
+  text-align: left;
+  max-width: 62ch;
+}
+
+.wbp-empty-title {
+  margin: 0 0 3px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.wbp-empty-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-muted-foreground);
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------- 对话面板接入 */
+/* 宽屏：左栏 + 主区 + 右侧对话栏（只在存在对话栏时出现第三列） */
+.wbp-root-chat {
+  grid-template-columns: 264px minmax(0, 1fr) minmax(320px, 384px);
+}
+
+.wbp-chatcol {
+  height: calc(100vh - 96px);
+  position: sticky;
+  top: 12px;
+}
+
+.wbp-chattools {
+  display: flex;
+  gap: 6px;
+  flex: none;
+  align-items: center;
+}
+
+/* 窄屏抽屉：与共享组件的 .wbc-drawer* 类配合（掩码点击关闭） */
+.wbp-drawer-layer {
+  position: relative;
+  z-index: 40;
+}
+
+/* ---------------------------------------------------------------- 响应式 */
+@media (max-width: 1180px) {
+  /* 收起第三列，主内容保持原来的两栏 → 单栏行为，与旧版视觉一致 */
+  .wbp-root-chat {
+    grid-template-columns: 264px minmax(0, 1fr);
+  }
+
+  .wbp-chatcol { display: none; }
+}
+
+@media (max-width: 1000px) {
+  .wbp-root,
+  .wbp-root-chat {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .wbp-side {
+    position: static;
+    max-height: 232px;
+  }
+
+  .wbp-stats { gap: 14px; }
+
+  .wbp-panel-col { max-width: 30ch; }
+}
+
+@media (max-width: 620px) {
+  .wbp-head { flex-direction: column; gap: 10px; }
+  .wbp-stats { align-self: stretch; justify-content: space-between; }
+  .wbp-stat { align-items: flex-start; }
+  .wbp-kv { grid-template-columns: 64px minmax(0, 1fr); }
+}
+
+/* ── 项目文件夹（懒加载层级 + 预览）与新建/纳管面板 ────────────────────────
+   全部沿用 Dashboard 主题变量（--color-*），Reflect 等浅/深主题自动适配；
+   不写死调色板。窄屏（≤1180px）折成上下堆叠，避免横向挤压甘特图。 */
+
+.wbp-btn-on {
+  background: var(--color-accent);
+  border-color: var(--color-border);
+}
+
+.wbp-empty-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+/* —— 文件面板容器 */
+.wbp-files {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  margin: 10px 0 0;
+  overflow: hidden;
+}
+
+.wbp-files-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.wbp-files-dir {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46ch;
+}
+
+.wbp-files-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 32%) 1fr;
+  min-height: 260px;
+  max-height: 62vh;
+}
+
+.wbp-filetree {
+  border-right: 1px solid var(--color-border);
+  overflow: auto;
+  padding: 6px 4px 12px;
+  font-size: 12.5px;
+}
+
+.wbp-filepane {
+  overflow: auto;
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.wbp-filepane-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  line-height: 1.7;
+}
+
+/* —— 树节点 */
+.wbp-fnode { display: block; }
+.wbp-fkids { padding-left: 12px; }
+
+.wbp-frow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--color-foreground);
+  padding: 3px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.wbp-frow:hover { background: var(--color-secondary); }
+
+.wbp-frow-active {
+  background: var(--color-accent);
+  outline: 1px solid var(--color-border);
+}
+
+.wbp-frow-dir { font-weight: 600; }
+
+.wbp-fcaret {
+  width: 12px;
+  flex: none;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-ficon {
+  width: 14px;
+  flex: none;
+  text-align: center;
+  color: var(--color-muted-foreground);
+}
+
+.wbp-ficon-image { color: #2f8f5b; }
+.wbp-ficon-pdf { color: #c0392b; }
+.wbp-ficon-download { color: #c97a12; }
+
+.wbp-fname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wbp-fsize,
+.wbp-fcount {
+  flex: none;
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.wbp-fmore { margin: 6px 0 0 18px; }
+.wbp-fhint {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  margin: 6px 0;
+  line-height: 1.6;
+}
+
+/* —— 预览 */
+.wbp-fpreview { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+
+.wbp-fpreview-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wbp-fpreview-title {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40ch;
+}
+
+.wbp-fpmeta {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.wbp-fpspacer { flex: 1; }
+.wbp-fpath {
+  font-size: 10.5px;
+  color: var(--color-muted-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+  margin: 0;
+}
+
+.wbp-ftextwrap { min-height: 0; }
+
+/* 纯文本：等宽 + 保留换行 + 横向滚动，不做任何 HTML 解析 */
+.wbp-ftext {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-secondary);
+  color: var(--color-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: auto;
+  max-height: 52vh;
+  tab-size: 4;
+}
+
+.wbp-fimgwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.wbp-fimg {
+  max-width: 100%;
+  max-height: 52vh;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(45deg, var(--color-secondary) 25%, transparent 25%,
+      transparent 50%, var(--color-secondary) 50%, var(--color-secondary) 75%,
+      transparent 75%) 0 0 / 16px 16px;
+}
+
+.wbp-fpdfwrap { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+
+.wbp-fpdf {
+  width: 100%;
+  height: 52vh;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-card);
+}
+
+.wbp-fdl { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+
+/* —— 新建 / 纳管面板 */
+.wbp-create { border: 1px solid var(--color-border); }
+
+.wbp-seg {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+.wbp-segbtn {
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-foreground);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.wbp-segbtn-on {
+  background: var(--color-accent);
+  border-color: var(--color-border);
+  font-weight: 600;
+}
+
+.wbp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 12px;
+  margin: 6px 0;
+}
+
+.wbp-textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-card);
+  color: var(--color-foreground);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.wbp-plan {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: var(--color-secondary);
+}
+
+.wbp-plan-ok { border-style: solid; }
+.wbp-plan-warn { border-color: #c97a12; }
+
+.wbp-plantitle {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wbp-planlist {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  line-height: 1.7;
+}
+
+/* —— 窄屏：树与预览上下堆叠 */
+@media (max-width: 1180px) {
+  .wbp-files-body {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .wbp-filetree {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    max-height: 40vh;
+  }
+
+  .wbp-files-dir { max-width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .wbp-ftext { font-size: 11.5px; max-height: 46vh; }
+  .wbp-fpdf { height: 46vh; }
+  .wbp-fimg { max-height: 40vh; }
+  .wbp-fpreview-title { max-width: 22ch; }
+}
+
+/* 面板整行铺开：项目列表与甘特图仍各占原网格列，只有这两个新面板跨满整行，
+   否则塞进 section.wbp-main 会被压到 ~289px 并与右侧对话栏视觉重叠。 */
+.wbp-panels {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wbp-panels .wbp-files,
+.wbp-panels .wbp-create { margin: 0; }

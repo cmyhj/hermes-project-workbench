@@ -1,0 +1,29 @@
+# 本地环境 / 运行产物
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+*.log
+
+# 本机真实配置与数据 —— 绝不入库
+plugin-data/
+project-roots.json
+zotero-mappings.json
+*.pm
+!tests/fixtures/*.pm
+
+# 截图与调试产物
+shots/
+notes/
+*.png
+!docs/*.png
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp

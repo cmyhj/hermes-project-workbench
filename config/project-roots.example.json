@@ -1,0 +1,25 @@
+{
+  "_comment": "wb-project 扫描根登记表。复制到 $HERMES_HOME/plugin-data/wb-project/project-roots.json 后按本机改路径。只有这里登记过的绝对路径会被扫描；接口不接受客户端传任意路径。归档与否由**物理根**决定（项目落在归档根下 = 归档），不看 .pm 里的 archived 标记。",
+  "_updated": "2026-11-21",
+  "active_root": "<你的活动项目根，例如一个绝对路径 /path/to/ActiveProjects>",
+  "archive_roots": [
+    {
+      "path": "<归档根，绝对路径 /path/to/Archives/ProjectArchives>",
+      "label": "ProjectArchives",
+      "kind": "backup",
+      "location": "archive"
+    },
+    {
+      "path": "<课程库根，绝对路径 /path/to/Libraries/Courses/示例课程>",
+      "label": "课程库·示例课程",
+      "kind": "course",
+      "location": "archive"
+    }
+  ],
+  "archive_policy": {
+    "default_target": "<归档根>",
+    "ask_before_move": true,
+    "course_projects_target": "<课程库根>/<课程名>/<项目目录名>",
+    "note": "归档位置每次移动前都问用户；本插件只读扫描，从不移动项目。归档根可以加多条，label 会出现在 UI 的根清单与同名角标里。"
+  }
+}

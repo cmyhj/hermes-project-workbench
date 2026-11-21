@@ -1,0 +1,45 @@
+# 第三方与来源声明 (NOTICE)
+
+本仓库的**全部源码为原创**，以 MIT 许可发布（见 `LICENSE`）。没有复制任何第三方项目的
+实现代码。下面列出运行期由**宿主环境**提供、本仓库不分发的依赖，以及结论所依据的
+外部文档，供审计与再分发时核对。
+
+## 1. 运行期由 Hermes Agent 宿主提供（本仓库不含其源码）
+
+| 依赖 | 用途 | 许可 |
+|---|---|---|
+| [Hermes Agent](https://github.com/NousResearch/hermes-agent) | 宿主：dashboard 框架、插件发现、鉴权、按插件的静态资产路由、`/api/ws` agent 通道 | MIT |
+| [FastAPI](https://fastapi.tiangolo.com/) + [Starlette](https://www.starlette.io/) | `plugin_api.py` 的路由与 `FileResponse` | MIT / BSD-3-Clause |
+| [Pydantic](https://docs.pydantic.dev/) | 请求体校验（`ProjectPlanBody`） | MIT |
+| [React](https://react.dev/) | 通过宿主注入的 `window.__HERMES_PLUGIN_SDK__.React` 使用，**未打包进本仓库** | MIT |
+
+`dist/index.js` 是手写的纯 IIFE（无构建步骤），React 只从宿主 SDK 取用，
+所以本仓库不包含 React 的副本，也不需要 npm 安装。
+
+## 2. 仅测试时使用（不在安装产物里）
+
+| 依赖 | 用途 | 许可 |
+|---|---|---|
+| [pytest](https://pytest.org/) | 后端用例 | MIT |
+| [Playwright](https://playwright.dev/) | 真实 Chromium 的 UI / 预览安全验证 | Apache-2.0 |
+| [PyMuPDF](https://pymupdf.readthedocs.io/) | 测试里生成/检查 PDF 与截图像素（预览探针） | AGPL-3.0（仅测试，不分发、不链接进插件） |
+
+> PyMuPDF 是 AGPL。它**只在 `tests/probe_preview*.py` 里被 import**，用于生成探测用 PDF
+> 并统计截图像素；插件本体 `plugin/dashboard/plugin_api.py` 与 `dist/` 都不依赖它。
+> 若要严格避免 AGPL 出现在你的环境，可直接删掉 `tests/probe_preview*.py` —— 那只是
+> 安全结论的复现脚本，不影响插件功能，也不影响其余用例通过。
+
+## 3. 结论依据的外部文档（引用，非代码）
+
+- Hermes Agent 文档：<https://hermes-agent.nousresearch.com/docs>
+  —— 插件 manifest 形状、`plugins.enabled` 门槛、`is_relative_to` 资产隔离、CSP 策略。
+- ProjectManager `.pm` 格式（`schema_version = 3`）：由本仓库 `README.md` §4 描述，
+  依据对 `.pm` 文件本身的观察与实测，而非某个公开规范的逐字复制。
+- MDN：`Content-Disposition` / `Content-Security-Policy: sandbox` / `X-Content-Type-Options`。
+
+## 4. 数据
+
+仓库内**不包含**任何真实项目文件、`.pm` 内容、题库、笔记、本地路径映射、私密日志或 token。
+`config/project-roots.example.json` 中的路径为泛化示例（`<活动项目根>`、
+`<归档根>`、`<课程库根>/示例课程`），安装后由使用者自行配置。
+测试全部使用临时目录里的合成数据。

@@ -947,9 +947,7 @@
     var [projects, setProjects] = useState(null);
     var [loadError, setLoadError] = useState(null);
     var [selectedId, setSelectedId] = useState(null);
-    // 「隐藏已归档」默认勾选 = 只看 Active 根下的项目。取消勾选才请求 include_archived=true，
-    // 归档根（E:/Backups/ProjectArchives、课程库）里的项目由后端按**物理位置**标 archived。
-    var [onlyOpen, setOnlyOpen] = useState(true);
+    // Everyday project tracking is active-only; archived roots never enter this view.
 
     var [link, setLink] = useState(null);
     var [linkStatus, setLinkStatus] = useState("idle");
@@ -1012,7 +1010,7 @@
 
     /** 重新拉项目数据，但保留当前选择（loading 期间不清空当前对象）。 */
     var reload = useCallback(function () {
-      return fetchJSON(BASE + "/projects?include_archived=" + (onlyOpen ? "false" : "true"))
+      return fetchJSON(BASE + "/projects?include_archived=false")
         .then(function (d) {
           if (!d || !Array.isArray(d.projects)) {
             setLoadError("后端返回的是旧版骨架（缺少 /projects 的 projects 字段）。" +
@@ -1024,24 +1022,7 @@
           return d;
         })
         .catch(function (e) { setLoadError(String(e && e.message || e)); return null; });
-    }, [onlyOpen]);
-
-    /** 切换「隐藏已归档」后必须真的重拉：归档项在另一个根里，前端缓存里根本没有。 */
-    var firstToggleRun = useRef(true);
-    useEffect(function () {
-      // 首屏由下面那条 effect 负责（它还带「恢复上次选中」），这里只处理用户勾选变化，
-      // 否则每次进页面都会打两次 /projects。
-      if (firstToggleRun.current) { firstToggleRun.current = false; return; }
-      var alive = true;
-      fetchJSON(BASE + "/projects?include_archived=" + (onlyOpen ? "false" : "true"))
-        .then(function (d) {
-          if (!alive || !d || !Array.isArray(d.projects)) return;
-          setProjects(d);
-          setLoadError(null);
-        })
-        .catch(function () { /* 首屏那条 effect 已经在报错，这里不覆盖 */ });
-      return function () { alive = false; };
-    }, [onlyOpen]);
+    }, []);
 
     useEffect(function () {
       fetchJSON(BASE + "/projects?include_archived=false")
@@ -1075,11 +1056,9 @@
 
     var list = useMemo(function () {
       if (!projects || !projects.projects) return [];
-      // 后端已经按 include_archived 过滤过；这里再兜一层是为了「勾上隐藏已归档」时
-      // 即使后端是新版本、前端缓存了旧数据也不会漏出归档项。
-      return onlyOpen ? projects.projects.filter(function (p) { return !p.archived; })
-        : projects.projects;
-    }, [projects, onlyOpen]);
+      // Refresh callbacks can return broader caches; physically archived projects stay excluded.
+      return projects.projects.filter(function (p) { return !p.archived; });
+    }, [projects]);
 
     var current = useMemo(function () {
       if (!list.length) return null;
@@ -1153,21 +1132,18 @@
       return h("div", { className: NS + "-root" }, h("div", { className: NS + "-hint" }, "加载项目…"));
     }
     if (!list.length) {
-      var scanned = (projects.roots || []).map(function (r) { return r.path; });
-      var emptyHint = (scanned.length ? "扫描路径：" + scanned.join("、") : "") +
-        (onlyOpen && projects.archived_count
-          ? (scanned.length ? "；" : "") + "还有 " + projects.archived_count +
-            " 个归档项目：取消勾选「隐藏已归档」查看"
-          : "");
-      // 一个项目都没有时仍然要能新建/纳管 —— 否则第一次使用就被空态卡死
+      var scanned = (projects.roots || []).filter(function (r) { return r.location === "active"; })
+        .map(function (r) { return r.path; });
+      var emptyHint = scanned.length ? "扫描路径：" + scanned.join("、") : "";
       return h("div", { className: NS + "-root" },
         h("aside", { className: NS + "-side" },
-          h("div", { className: NS + "-side-head" }, h("h2", { className: NS + "-side-title" }, "项目"), h("span", { className: NS + "-side-count" }, "0")),
-          h("button", { className: NS + "-btn " + NS + "-btn-primary " + NS + "-sidebar-create", onClick: function () { setCreateOpen(true); setCreateMode("new"); refreshCreatable(); } }, "新建/纳管")),
-        h(Empty, {
-          title: onlyOpen
-            ? "活动根下没有可显示的 .pm 项目"
-            : "已注册的项目根下都没有可显示的 .pm 项目",
+          h("div", { className: NS + "-side-head" },
+            h("h2", { className: NS + "-side-title" }, "项目"),
+            h("span", { className: NS + "-side-count" }, "0")),
+          h("button", { className: NS + "-btn " + NS + "-btn-primary " + NS + "-sidebar-create",
+            onClick: function () { setCreateOpen(true); setCreateMode("new"); refreshCreatable(); }
+          }, "新建/纳管")),
+        h(Empty, { title: "活动根下没有可显示的 .pm 项目",
           hint: emptyHint || null,
         }),
         h("div", { className: NS + "-empty-actions" },
@@ -1279,16 +1255,6 @@
                 style: { background: p.color || "currentColor" },
               }),
               h("span", { className: NS + "-projname" }, p.name,
-                // 归档来源：文献式角标，不新增行高（列表已经很密）。
-                // 跨根同名时把根标签写进角标，否则列表里两行一模一样的名字根本分不清。
-                p.archived
-                  ? h("span", {
-                    className: NS + "-tag " + NS + "-tag-archive",
-                    title: "归档位置：" + (p.root || "") + "（由物理位置识别，不看 .pm 标记）",
-                  }, p.id_conflict_with_active
-                    ? "归档·" + (p.root_label || p.root_kind || "")
-                    : "归档")
-                  : null,
                 p.archive_anomaly
                   ? h("span", {
                     className: NS + "-tag " + NS + "-tag-warn",
@@ -1305,39 +1271,19 @@
           })),
         !current.archived ? h("button", { className: NS + "-btn " + NS + "-btn-primary " + NS + "-sidebar-create",
           onClick: function () { var next = !createOpen; setCreateOpen(next); setCreateMode("new"); if (next) refreshCreatable(); }
-        }, createOpen ? "收起新建" : "新建/纳管") : null,
-        h("label", { className: NS + "-toggle" },
-          h("input", {
-            type: "checkbox", checked: onlyOpen,
-            onChange: function (e) { setOnlyOpen(e.target.checked); },
-          }), "隐藏已归档"),
-        // 归档根清单：让「归档在哪」是可见事实，不是一个硬编码常量
-        (projects.roots && projects.roots.length > 1)
-          ? h("ul", { className: NS + "-rootlist" },
-            projects.roots.map(function (r) {
-              return h("li", {
-                key: r.path,
-                className: NS + "-rootitem" + (r.exists === false ? " " + NS + "-rootitem-missing" : ""),
-                title: r.path,
-              },
-                h("span", { className: NS + "-rootkind" },
-                  r.location === "active" ? "活动" : "归档"),
-                h("span", { className: NS + "-rootlabel" }, r.label),
-                r.exists === false ? h("span", { className: NS + "-rootmiss" }, "不可达") : null);
-            }))
-          : null),
+        }, createOpen ? "收起新建" : "新建/纳管") : null),
 
       // —— 右栏：甘特 + 论文
       h("section", { className: NS + "-main" },
         h("header", { className: NS + "-head" },
+          h("select", { className: NS + "-mobile-project-picker", value: current.id,
+            "aria-label": "选择项目", onChange: function (e) { selectProject(e.target.value); } },
+            list.map(function (p) { return h("option", { key: p.id, value: p.id }, p.name); })),
           h("div", { className: NS + "-head-main" },
             h("h1", { className: NS + "-title" }, current.name),
             h("p", { className: NS + "-subtitle" },
               (current.start || "起始未知") + " → " + (current.end || "结束未知"),
-              current.updated_at ? " · 更新于 " + current.updated_at.slice(0, 10) : "",
-              current.archived
-                ? " · 归档于 " + (current.root_label || current.root || "归档根")
-                : ""),
+              current.updated_at ? " · 更新于 " + current.updated_at.slice(0, 10) : ""),
             current.archive_anomaly
               ? h("p", { className: NS + "-warnline", role: "status" }, current.archive_anomaly)
               : null),

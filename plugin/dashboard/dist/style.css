@@ -769,10 +769,21 @@
 }
 
 @media (max-width: 620px) {
+  .wbp-side { display: none; }
+  .wbp-root .wbp-mobile-project-picker { display: block; width: 100%; min-height: 40px; }
   .wbp-head { flex-direction: column; gap: 10px; }
   .wbp-stats { align-self: stretch; justify-content: space-between; }
   .wbp-stat { align-items: flex-start; }
   .wbp-kv { grid-template-columns: 64px minmax(0, 1fr); }
+}
+
+.wbp-mobile-project-picker { display: none; }
+
+@media (max-width: 620px) {
+  .wbc-drawer { top: auto !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100% !important; max-height: 68vh; height: 68vh; border-left: 0;
+    border-top: 1px solid var(--color-border); border-radius: 14px 14px 0 0; }
+  .wbc-drawer .wbc-panel { height: 100%; max-height: none; }
 }
 
 /* ── 项目文件夹（懒加载层级 + 预览）与新建/纳管面板 ────────────────────────

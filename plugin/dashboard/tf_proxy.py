@@ -18,13 +18,38 @@ from __future__ import annotations
 
 import http.client
 import os
+import re
+import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TARGET_HOST = "127.0.0.1"
 TARGET_PORT = int(os.environ.get("WB_PROJECT_TEXTFOLD_PORT", "3017"))
 LISTEN_PORT = int(os.environ.get("WB_PROJECT_TF_PROXY_PORT", "3018"))
-LISTEN_HOST = os.environ.get("WB_PROJECT_TF_PROXY_BIND", "0.0.0.0")
+def _zerotier_ip() -> str:
+    """取 ZeroTier 虚拟网卡的 IPv4；取不到就退回 only-localhost（宁可不暴露）。"""
+    try:
+        out = subprocess.run(["ipconfig"], capture_output=True, text=True,
+                             errors="replace", timeout=10).stdout or ""
+    except Exception:
+        return "127.0.0.1"
+    block: list[str] = []
+    for line in out.splitlines():
+        if "ZeroTier" in line:
+            block = [line]
+        elif block:
+            block.append(line)
+            if "IPv4" in line:
+                break
+    for line in block:
+        if "IPv4" in line:
+            match = re.search(r"(\d{1,3}(?:\.\d{1,3}){3})", line)
+            if match:
+                return match.group(1)
+    return "127.0.0.1"
+
+
+LISTEN_HOST = os.environ.get("WB_PROJECT_TF_PROXY_BIND") or _zerotier_ip()
 
 _SKIP_REQUEST = {"host", "origin", "referer", "connection", "accept-encoding", "content-length"}
 _SKIP_RESPONSE = {"transfer-encoding", "content-length", "connection", "keep-alive"}

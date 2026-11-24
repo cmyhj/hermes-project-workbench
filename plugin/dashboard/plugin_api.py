@@ -14,9 +14,8 @@
   ``project.archived`` 只作为 ``pm_archived`` 如实带出。
 * Active 根下留着 ``pm_archived=true`` 的项目 → 照常在活动列表里显示，
   并在 ``archive_anomaly`` 里说明「标了归档但没真的搬走」，接口与 UI 都不许静默藏起来。
-* 归档位置不是单一硬编码：默认归档根 ``~/Backups/ProjectArchives``（占位，用
-  ``WB_PROJECT_ARCHIVE_ROOT`` 或配置文件覆盖），课程项目登记在课程库根（如
-  ``~/Libraries/Courses/<课程名>``）。根清单可被
+* 归档位置不是单一硬编码：默认 ``E:/Backups/ProjectArchives``，课程项目登记在
+  课程库根（如 ``E:/Libraries/Courses/机器视觉``）。根清单可被
   ``plugin-data/wb-project/project-roots.json`` 覆盖 —— 只有**被登记过的**绝对路径才会扫描。
 
 安全约束（本文件必须保持）：
@@ -45,17 +44,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 router = APIRouter()
 
-PROJECTS_ROOT = Path(os.environ.get("WB_PROJECT_ROOT") or (Path.home() / "ActiveProjects"))
-DEFAULT_PROJECTS_ROOT = PROJECTS_ROOT
-DEFAULT_ARCHIVE_ROOT = Path(os.environ.get("WB_PROJECT_ARCHIVE_ROOT")
-                            or (Path.home() / "Backups" / "ProjectArchives"))
+PROJECTS_ROOT = Path(os.environ.get("WB_PROJECT_ROOT") or r"D:/ActiveProjects")
+DEFAULT_PROJECTS_ROOT = Path(r"D:/ActiveProjects")
+DEFAULT_ARCHIVE_ROOT = Path(r"E:/Backups/ProjectArchives")
 # 课程归档根：课程项目搬进课程库对应的课程目录下（不是 Backup）。
 # 只扫这一层的一级子目录，不递归 —— 课程目录里还有实验1..实验N 等资料树。
-COURSE_ARCHIVE_ROOT = Path(os.environ.get("WB_PROJECT_COURSE_ROOT")
-                            or (Path.home() / "Libraries" / "Courses" / "示例课程"))
+COURSE_ARCHIVE_ROOT = Path(os.environ.get("WB_PROJECT_COURSE_ROOT") or r"E:/Libraries/Courses/机器视觉")
 ROOTS_CONFIG_NAME = "project-roots.json"
 MAX_PM_BYTES = 32 * 1024 * 1024     # .pm 规格上限；超了不读，避免拖死请求
 ZOTERO_ROOT = "http://127.0.0.1:23119/api/users/0"
@@ -781,6 +779,65 @@ def roots() -> Dict[str, Any]:
         "note": "归档位置不是硬编码的：默认 ProjectArchives，课程项目另注册课程库根。"
                 "新增位置请改服务端配置文件，不接受接口传任意路径。",
     }
+
+
+class TaskStatusUpdate(BaseModel):
+    status: str
+
+
+@router.put("/projects/{project_id}/tasks/{task_id}/status")
+def update_task_status(project_id: str, task_id: str, body: TaskStatusUpdate) -> Dict[str, Any]:
+    """Update only status of a task in a registered, active-root .pm."""
+    allowed = {"待办", "进行中", "已完成"}
+    if body.status not in allowed:
+        raise HTTPException(status_code=400, detail="非法任务状态")
+    project = resolve_project(project_id)
+    if project is None or project.get("archived") or project.get("location") != "active":
+        raise HTTPException(status_code=404, detail="未知活动项目")
+    pm = Path(project["dir_path"]) / project["pm_file"]
+    root = next((r for r in _project_roots() if r["location"] == "active" and
+                 os.path.normcase(os.path.realpath(r["path"])) == os.path.normcase(os.path.realpath(project["root"]))), None)
+    if root is None or _is_link(pm.parent) or _is_link(pm) or not pm.is_file():
+        raise HTTPException(status_code=404, detail="项目文件不可用")
+    base = os.path.normcase(os.path.realpath(root["path"]))
+    if os.path.dirname(os.path.normcase(os.path.realpath(pm.parent))) != base or os.path.dirname(os.path.normcase(os.path.realpath(pm))) != os.path.normcase(os.path.realpath(pm.parent)):
+        raise HTTPException(status_code=404, detail="项目路径越界")
+    if pm.stat().st_size > MAX_PM_BYTES:
+        raise HTTPException(status_code=400, detail="项目文件超过大小限制")
+    try:
+        raw = pm.read_bytes()
+        data = json.loads(raw.decode("utf-8-sig"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="项目 JSON 损坏")
+    if not isinstance(data, dict) or not isinstance(data.get("tasks"), list):
+        raise HTTPException(status_code=400, detail="项目 JSON 结构无效")
+    task = next((t for t in data["tasks"] if isinstance(t, dict) and str(t.get("id") or "") == task_id), None)
+    if task is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    task["status"] = body.status
+    backup = pm.with_name(pm.name + ".bak-before-status-" + _dt.date.today().strftime("%Y%m%d"))
+    try:
+        if backup.exists():
+            backup = pm.with_name(pm.name + ".bak-before-status-" + _dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
+        backup.write_bytes(raw)
+        payload = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+        fd, tmp = tempfile.mkstemp(dir=str(pm.parent), prefix=pm.name + ".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(payload)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, pm)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="写入项目失败：%s" % exc)
+    updated_data = _read_pm(pm)
+    normalized = _normalize_project(updated_data, pm, root)
+    _assign_ids([normalized])
+    normalized_task = next(t for t in normalized["tasks"] if t["id"] == task_id)
+    return {"ok": True, "task": normalized_task, "project": normalized, "backup": backup.name}
 
 
 @router.get("/projects")

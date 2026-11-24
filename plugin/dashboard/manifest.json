@@ -3,7 +3,7 @@
   "label": "项目",
   "description": "项目进度甘特图与关联 Zotero 论文列表",
   "icon": "Box",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "tab": {
     "path": "/projects",
     "position": "after:kanban"

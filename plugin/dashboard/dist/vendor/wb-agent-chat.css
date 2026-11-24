@@ -14,7 +14,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 8px);
   background: var(--color-card);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   font-size: 13px;
   line-height: 1.55;
   overflow: hidden;
@@ -79,7 +79,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
 }
 
 .wbc-cwd {
@@ -135,7 +135,7 @@
 }
 
 .wbc-icon:hover {
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   background: var(--color-muted, rgba(127, 127, 127, 0.12));
 }
 
@@ -199,6 +199,99 @@
   padding-left: 7px;
 }
 
+/* ------------------------------------------------------------ Markdown 气泡 */
+/* 只在 agent 回复渲染完成后启用（见 wb-agent-chat.js 的 renderMarkdown）。
+ * 覆盖上面的 pre-wrap：块级结构由渲染器产出，行内换行已转成 <br>。 */
+.wbc-bubble.wbc-md {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wbc-md > :first-child { margin-top: 0; }
+.wbc-md > :last-child { margin-bottom: 0; }
+
+.wbc-md p { margin: 6px 0; line-height: 1.65; }
+
+.wbc-md h1,
+.wbc-md h2,
+.wbc-md h3,
+.wbc-md h4,
+.wbc-md h5,
+.wbc-md h6 {
+  margin: 10px 0 6px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+.wbc-md h1 { font-size: 15px; }
+.wbc-md h2 { font-size: 14px; }
+.wbc-md h3 { font-size: 13px; }
+.wbc-md h4,
+.wbc-md h5,
+.wbc-md h6 { font-size: 12.5px; }
+
+.wbc-md ul,
+.wbc-md ol { margin: 6px 0; padding-left: 20px; }
+.wbc-md li { margin: 2px 0; line-height: 1.6; }
+
+.wbc-md blockquote {
+  margin: 8px 0;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid var(--color-border, rgba(127, 127, 127, 0.35));
+}
+
+.wbc-md hr {
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--color-border, rgba(127, 127, 127, 0.35));
+}
+
+.wbc-md a {
+  color: var(--color-primary, #2f6feb);
+  text-decoration: none;
+}
+.wbc-md a:hover { text-decoration: underline; }
+
+.wbc-md-pre {
+  margin: 8px 0;
+  padding: 8px 10px;
+  overflow-x: auto;
+  background: var(--color-muted, rgba(127, 127, 127, 0.12));
+  border: 1px solid var(--color-border, rgba(127, 127, 127, 0.25));
+  border-radius: 8px;
+  white-space: pre;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.wbc-md-code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--color-muted, rgba(127, 127, 127, 0.14));
+  border: 1px solid var(--color-border, rgba(127, 127, 127, 0.22));
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wbc-md-table-wrap {
+  margin: 8px 0;
+  overflow-x: auto;
+}
+.wbc-md table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.wbc-md th,
+.wbc-md td {
+  border: 1px solid var(--color-border, rgba(127, 127, 127, 0.25));
+  padding: 3px 6px;
+}
+.wbc-md th {
+  background: var(--color-muted, rgba(127, 127, 127, 0.1));
+  text-align: left;
+}
+
 .wbc-typing {
   color: var(--color-muted-foreground);
   font-size: 12px;
@@ -236,7 +329,7 @@
 
 .wbc-tool-name {
   font-family: var(--font-mono, ui-monospace, monospace);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   opacity: 0.86;
 }
 
@@ -314,7 +407,7 @@
   min-height: 56px;
   max-height: 200px;
   font: inherit;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   background: var(--color-background, transparent);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 6px);
@@ -353,7 +446,7 @@
   border-radius: var(--radius-sm, 6px);
   border: 1px solid var(--color-border);
   background: var(--color-card);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -405,7 +498,7 @@
 }
 
 .wbc-handle:hover {
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
 }
 
 .wbc-handle-dot {
@@ -459,4 +552,49 @@
   .wbc-log { padding: 10px; }
   .wbc-msg-user .wbc-bubble { max-width: 94%; }
   .wbc-scope { max-width: 100%; }
+}
+
+/* Model and slash-skill picker */
+.wbc-model-row { display:flex; align-items:center; gap:6px; margin-top:7px; max-width:100%; color:var(--color-muted-foreground); font-size:11px; }
+.wbc-model-row select { min-width:0; max-width:100%; border:1px solid var(--color-border); border-radius:var(--radius-sm,6px); padding:4px 6px; background:var(--color-card); color:var(--color-foreground, currentColor); font:inherit; }
+.wbc-model-lock { flex:none; font-size:10.5px; color:var(--color-muted-foreground); }
+.wbc-model-note { margin:4px 0 0; font-size:10.5px; color:var(--color-muted-foreground); }
+.wbc-model-confirm { margin-top:6px; display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:6px 8px;
+  border:1px solid #c97a12aa; border-radius:var(--radius-sm,6px); background:#c97a1214; font-size:11px; }
+.wbc-picker-err { margin:4px 0 0; display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  font-size:10.5px; color:#d33f3f; }
+.wbc-picker-retry { flex:none; }
+
+/* 输入区：候选菜单浮在输入框上方，而不是在文档流里把发送按钮顶出面板。
+   `.wbc-panel` 是 overflow:hidden，旧的内联菜单会被裁掉/遮住发送行。 */
+.wbc-input-wrap { position:relative; display:flex; flex-direction:column; min-width:0; }
+
+.wbc-skill-menu {
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:calc(100% + 4px);
+  z-index:20;
+  max-height:min(260px, 40vh);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  border:1px solid var(--color-border);
+  border-radius:var(--radius-sm,6px);
+  background:var(--color-card);
+  box-shadow:0 8px 24px #0003;
+}
+.wbc-skill-option { display:flex; width:100%; gap:10px; align-items:baseline; border:0; border-bottom:1px solid var(--color-border);
+  padding:7px 9px; text-align:left; background:transparent; color:var(--color-foreground, currentColor); font:inherit; cursor:pointer; }
+.wbc-skill-option:last-child { border-bottom:0; }
+.wbc-skill-option strong { flex:none; font-family:var(--font-mono, ui-monospace, monospace); font-weight:600; }
+.wbc-skill-option span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-muted-foreground); font-size:11px; }
+.wbc-skill-option.is-active,.wbc-skill-option:hover { background:var(--color-muted,rgba(127,127,127,.12)); }
+.wbc-skill-empty { position:absolute; left:0; right:0; bottom:calc(100% + 4px); z-index:20;
+  padding:6px 9px; border:1px solid var(--color-border); border-radius:var(--radius-sm,6px);
+  background:var(--color-card); color:var(--color-muted-foreground); font-size:11px; }
+@media (max-width:640px) {
+  .wbc-model-row { flex-wrap:wrap; }
+  .wbc-model-row select { flex:1 1 100%; min-height:36px; }
+  .wbc-skill-menu { max-height:35vh; }
+  .wbc-skill-option { min-height:40px; }
 }

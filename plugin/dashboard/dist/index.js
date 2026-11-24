@@ -144,8 +144,13 @@
 
     // 只有带截止日的任务能定位条形。其余集中成一行「N 项无截止日」的说明，
     // 而不是每项都占一行画「无截止日」—— 那会把图表变成噪声，也不诚实。
-    var tasks = allTasks.filter(function (t) { return t.due; });
-    var unscheduled = allTasks.filter(function (t) { return !t.due; });
+    var tasks = allTasks.filter(function (t) { return t.due; }).slice()
+      .sort(function (a, b) {
+        return String(a.due).localeCompare(String(b.due)) ||
+          String(a.title).localeCompare(String(b.title));
+      });
+    var unscheduled = allTasks.filter(function (t) { return !t.due; }).slice()
+      .sort(function (a, b) { return String(a.title).localeCompare(String(b.title)); });
 
     if (!tasks.length) {
       return h(Empty, {
@@ -1066,6 +1071,37 @@
       return list[0];
     }, [list, selectedId]);
 
+    function changeTaskStatus(task, nextStatus) {
+      if (!current || !task || nextStatus === task.status) return;
+      var previous = task.status;
+      function localStatus(status) {
+        setProjects(function (old) {
+          if (!old || !old.projects) return old;
+          return Object.assign({}, old, { projects: old.projects.map(function (p) {
+            if (p.id !== current.id) return p;
+            return Object.assign({}, p, { tasks: p.tasks.map(function (t) {
+              if (t.id !== task.id) return t;
+              return Object.assign({}, t, { status: status, status_group: status === "已完成" ? "done" : status === "进行中" ? "doing" : "todo" });
+            }) });
+          }) });
+        });
+        setFocusTask(function (f) { return f && f.id === task.id ? Object.assign({}, f, { status: status, status_group: status === "已完成" ? "done" : status === "进行中" ? "doing" : "todo" }) : f; });
+      }
+      localStatus(nextStatus);
+      (SDK.authedFetch || fetch)(BASE + "/projects/" + encodeURIComponent(current.id) + "/tasks/" + encodeURIComponent(task.id) + "/status", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: nextStatus }),
+      }).then(function (r) {
+        if (!r || !r.ok) throw new Error("状态保存失败 HTTP " + (r && r.status));
+        return r.json();
+      }).then(function (d) {
+        if (!d || !d.task) throw new Error("后端未返回更新任务");
+        localStatus(d.task.status);
+      }).catch(function (e) {
+        localStatus(previous);
+        setSaveError(String(e && e.message || e));
+      });
+    }
+
     // 选中项目变化 → 解析 Zotero 关联 → 取条目
     useEffect(function () {
       if (!current) return;
@@ -1255,6 +1291,7 @@
                 style: { background: p.color || "currentColor" },
               }),
               h("span", { className: NS + "-projname" }, p.name,
+
                 p.archive_anomaly
                   ? h("span", {
                     className: NS + "-tag " + NS + "-tag-warn",
@@ -1320,11 +1357,11 @@
               },
             }, createOpen ? "收起新建" : "新建/纳管") : null,
             !narrow ? h("button", {
-              className: NS + "-btn " + NS + "-btn-quiet",
+              className: NS + "-btn " + NS + "-btn-quiet wb-chat-entry",
               title: chatOpen ? "收起 agent 对话面板" : "展开 agent 对话面板",
               onClick: function () { setChatOpen(!chatOpen); },
             }, chatOpen ? "收起对话" : "对话" + (chatBusy ? " ●" : "")) : h("button", {
-              className: NS + "-btn " + NS + "-btn-quiet",
+              className: NS + "-btn " + NS + "-btn-quiet wb-chat-entry",
               onClick: function () { setChatDrawer(true); },
             }, "对话" + (chatBusy ? " ●" : "")))),
 
@@ -1338,12 +1375,13 @@
             }, ganttOpen ? "收起甘特图" : "展开甘特图")),
           ganttOpen ? h(React.Fragment, null,
             h("div", { className: NS + "-recent-todos" },
-              h("h3", { className: NS + "-panel-title" }, "近期未完成待办"),
-              (current.tasks || []).filter(function (t) { return t.status_group !== "done"; })
-                .slice().sort(function (a, b) {
+              h("h3", { className: NS + "-panel-title" }, "最近未完成待办"),
+              (current.tasks || [])
+                .filter(function (t) { return t.status_group !== "done"; })
+                .sort(function (a, b) {
                   var ad = a.due || "9999-99-99", bd = b.due || "9999-99-99";
                   return ad < bd ? -1 : ad > bd ? 1 : String(a.title || "").localeCompare(String(b.title || ""), "zh-CN");
-                }).slice(0, 8).map(function (t) {
+                }).slice(0, 1).map(function (t) {
                   return h("button", { key: t.id || t.title, className: NS + "-todo-row", onClick: function () { setFocusTask(t); } },
                     h(StatusPill, { group: t.status_group, status: t.status }),
                     h("span", { className: NS + "-todo-title" }, t.title),
@@ -1354,6 +1392,7 @@
         focusTask ? h("div", { className: NS + "-focus" },
           h("div", { className: NS + "-focus-head" },
             h(StatusPill, { group: focusTask.status_group, status: focusTask.status }),
+            h("label", { className: NS + "-status-edit" }, "修改状态", h("select", { value: focusTask.status || "待办", onChange: function (ev) { changeTaskStatus(focusTask, ev.target.value); }, "aria-label": "修改任务状态" }, ["待办", "进行中", "已完成"].map(function (x) { return h("option", { key: x, value: x }, x); }))),
             h("strong", null, focusTask.title),
             focusTask.priority ? h("span", { className: NS + "-prio" }, "优先级 " + focusTask.priority) : null,
             h("button", {

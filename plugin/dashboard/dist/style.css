@@ -14,7 +14,7 @@
   gap: 20px;
   align-items: start;
   padding: 16px 4px 32px;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -139,7 +139,7 @@
   cursor: pointer;
 }
 
-.wbp-toggle input { accent-color: var(--color-foreground); }
+.wbp-toggle input { accent-color: var(--color-foreground, currentColor); }
 
 /* 项目名后面的小角标：归档来源 / 未真正迁移。
    和名字同一行，不换行、不吃高度；两个角标都只是「提示」，详细信息在 title 里。 */
@@ -261,7 +261,7 @@
   border: 0;
   border-top: 1px solid var(--color-border);
   background: transparent;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -341,8 +341,9 @@
 /* 滚动提示：只在真的溢出时由 JS 不参与，靠 CSS 的 scrollbar 颜色可读 */
 .wbp-gantt-wrap { scrollbar-width: thin; }
 
-/* 行标签用主题前景色；SVG 内 currentColor 需要显式给定 */
-.wbp-gantt text { fill: var(--color-foreground); }
+/* SVG fill defaults to black when a CSS variable is undefined. Use the
+   inherited text color: the host exposes --foreground, not --color-foreground. */
+.wbp-gantt text { fill: currentColor; }
 
 .wbp-rowlabel {
   font-size: 10.5px;
@@ -354,7 +355,7 @@
 
 .wbp-due {
   font-size: 10px;
-  fill: var(--color-foreground);
+  fill: var(--color-foreground, currentColor);
   opacity: 0.72;
   font-variant-numeric: tabular-nums;
 }
@@ -428,7 +429,7 @@
 /* 点开某条任务后的详情条 */
 .wbp-focus {
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-foreground);
+  border-left: 3px solid var(--color-foreground, currentColor);
   border-radius: var(--radius-sm, 6px);
   background: var(--color-secondary);
   padding: 10px 12px;
@@ -540,7 +541,7 @@
   min-width: 0;
   padding: 5px 9px;
   font-size: 12px;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   background: var(--color-background);
   border: 1px solid var(--color-input);
   border-radius: var(--radius-sm, 5px);
@@ -581,7 +582,7 @@
 .wbp-paper:hover,
 .wbp-paper:focus-visible {
   background: var(--color-secondary);
-  border-left-color: var(--color-foreground);
+  border-left-color: var(--color-foreground, currentColor);
   outline: none;
 }
 
@@ -604,7 +605,7 @@
 
 .wbp-paper-year {
   font-variant-numeric: tabular-nums;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   opacity: 0.8;
 }
 
@@ -635,7 +636,7 @@
   max-width: 100%;
   padding: 5px 8px;
   font-size: 12px;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   background: var(--color-background);
   border: 1px solid var(--color-input);
   border-radius: var(--radius-sm, 5px);
@@ -647,7 +648,7 @@
   border-radius: var(--radius-sm, 5px);
   border: 1px solid var(--color-border);
   background: var(--color-secondary);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   cursor: pointer;
   white-space: nowrap;
   transition: background 120ms ease, opacity 120ms ease;
@@ -661,13 +662,13 @@
 }
 
 .wbp-btn-primary {
-  background: var(--color-foreground);
+  background: var(--color-foreground, currentColor);
   color: var(--color-background);
-  border-color: var(--color-foreground);
+  border-color: var(--color-foreground, currentColor);
   font-weight: 500;
 }
 
-.wbp-btn-primary:hover { opacity: 0.88; background: var(--color-foreground); }
+.wbp-btn-primary:hover { opacity: 0.88; background: var(--color-foreground, currentColor); }
 
 .wbp-btn-quiet {
   margin-left: auto;
@@ -680,7 +681,7 @@
 
 .wbp-btn-quiet:hover {
   background: var(--color-secondary);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
 }
 
 .wbp-err {
@@ -706,7 +707,7 @@
   margin: 0 0 3px;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
 }
 
 .wbp-empty-hint {
@@ -873,7 +874,7 @@
   width: 100%;
   border: 0;
   background: none;
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   padding: 3px 6px;
   border-radius: 5px;
   cursor: pointer;
@@ -974,7 +975,7 @@
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-secondary);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   line-height: 1.6;
@@ -1027,7 +1028,7 @@
 .wbp-segbtn {
   border: 1px solid var(--color-border);
   background: var(--color-card);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   border-radius: 7px;
   padding: 5px 10px;
   font: inherit;
@@ -1053,7 +1054,7 @@
   border: 1px solid var(--color-border);
   border-radius: 7px;
   background: var(--color-card);
-  color: var(--color-foreground);
+  color: var(--color-foreground, currentColor);
   font: inherit;
   font-size: 12.5px;
   padding: 6px 8px;
@@ -1121,7 +1122,7 @@
 .wbp-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--color-foreground) 28%, transparent);
+  background: color-mix(in srgb, var(--color-foreground, currentColor) 28%, transparent);
 }
 .wbp-modal-layer .wbp-create {
   position: relative;
@@ -1131,4 +1132,10 @@
   overflow: auto;
   margin: 0;
   box-shadow: 0 16px 48px color-mix(in srgb, #000 24%, transparent);
+}
+
+/* Shared workbench chat entry: one stable bottom anchor on touch screens. */
+@media (max-width:760px) {
+  .wb-chat-entry { position:fixed !important; z-index:38; left:50%; transform:translateX(-50%); bottom:calc(10px + env(safe-area-inset-bottom)); min-width:150px; min-height:42px; box-shadow:0 4px 18px rgba(0,0,0,.18); }
+  .wbp-root, .wbl-root { padding-bottom:76px !important; }
 }

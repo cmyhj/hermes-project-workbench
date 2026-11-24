@@ -468,7 +468,7 @@
     var [blobUrl, setBlobUrl] = useState(null);
     var [blobKind, setBlobKind] = useState(null);   // "image" | "pdf"
     var holder = useRef(null);
-    var [sending, setSending] = useState(false);   // 送阅读：正在投喂 TextFold
+    var [sending, setSending] = useState(false);   // TextFold折叠阅读：正在投喂 TextFold
 
     useEffect(function () {
       setMeta(null); setError(null); setBlobUrl(null); setBlobKind(null);
@@ -503,7 +503,7 @@
       };
     }, [meta]);
 
-    // 送阅读：把当前预览的 PDF 字节交给 textfold 插件，等它生成完再打开阅读器。
+    // TextFold折叠阅读：把当前预览的 PDF 字节交给 TextFold，拿到 pid 就打开阅读器（生成后台继续）。
     function sendToReading() {
       if (!blobUrl || sending) return;
       setSending(true);
@@ -543,7 +543,7 @@
           };
           tick();
         })
-        .catch(function (e) { setSending(false); window.alert("送阅读失败：" + e); });
+        .catch(function (e) { setSending(false); window.alert("TextFold折叠阅读失败：" + e); });
     }
 
     if (error) {
@@ -565,7 +565,7 @@
           disabled: !blobUrl || sending,
           onClick: sendToReading,
           title: "把这份 PDF 交给 TextFold，按 1–5 级折读",
-        }, sending ? "送阅读中…" : "送阅读")
+        }, sending ? "折叠中…" : "TextFold折叠阅读")
         : null,
       meta.download_url
         ? h("a", {

@@ -468,6 +468,7 @@
     var [blobUrl, setBlobUrl] = useState(null);
     var [blobKind, setBlobKind] = useState(null);   // "image" | "pdf"
     var holder = useRef(null);
+    var [sending, setSending] = useState(false);   // 送阅读：正在投喂 TextFold
 
     useEffect(function () {
       setMeta(null); setError(null); setBlobUrl(null); setBlobKind(null);
@@ -502,6 +503,47 @@
       };
     }, [meta]);
 
+    // 送阅读：把当前预览的 PDF 字节交给 textfold 插件，等它生成完再打开阅读器。
+    function sendToReading() {
+      if (!blobUrl || sending) return;
+      setSending(true);
+      var name = (meta && meta.name) || "paper.pdf";
+      fetch(blobUrl)
+        .then(function (r) { return r.blob(); })
+        .then(function (b) {
+          return SDK.authedFetch("/api/plugins/textfold/upload?name=" + encodeURIComponent(name) + "&lang=zh", {
+            method: "POST",
+            headers: { "Content-Type": "application/pdf" },
+            body: b,
+          });
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res && res.needs === "engine") {
+            setSending(false);
+            window.alert("TextFold 读不了这份 PDF（内置解析失败，需要它的 PDF 引擎）");
+            return;
+          }
+          var job = (res && res.job) || {};
+          var pid = (res && res.paper) || job.pid;
+          var openReader = function () {
+            window.open("http://127.0.0.1:3017/p/" + encodeURIComponent(pid) + "?lang=zh", "_blank", "noopener");
+          };
+          if (!job.id) { openReader(); setSending(false); return; }
+          var tick = function () {
+            SDK.fetchJSON("/api/plugins/textfold/jobs/" + encodeURIComponent(job.id))
+              .then(function (j) {
+                if (j.status === "done") { openReader(); setSending(false); }
+                else if (j.status === "error") { setSending(false); window.alert("生成失败：" + (j.error || "")); }
+                else setTimeout(tick, 2000);
+              })
+              .catch(function () { setTimeout(tick, 2000); });
+          };
+          tick();
+        })
+        .catch(function (e) { setSending(false); window.alert("送阅读失败：" + e); });
+    }
+
     if (error) {
       return h("div", { className: NS + "-fpreview" }, h("p", { className: NS + "-err" }, error));
     }
@@ -515,6 +557,14 @@
         (meta.mtime ? " · " + meta.mtime.slice(0, 16).replace("T", " ") : "")),
       meta.read_only ? h("span", { className: NS + "-tag " + NS + "-tag-archive" }, "归档只读") : null,
       h("span", { className: NS + "-fpspacer" }),
+      meta.kind === "pdf"
+        ? h("button", {
+          className: NS + "-btn " + NS + "-btn-quiet",
+          disabled: !blobUrl || sending,
+          onClick: sendToReading,
+          title: "把这份 PDF 交给 TextFold，按 1–5 级折读",
+        }, sending ? "送阅读中…" : "送阅读")
+        : null,
       meta.download_url
         ? h("a", {
           className: NS + "-btn " + NS + "-btn-quiet",

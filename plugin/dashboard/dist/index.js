@@ -527,7 +527,7 @@
           var job = (res && res.job) || {};
           var pid = (res && res.paper) || job.pid;
           var openReader = function () {
-            window.open("http://127.0.0.1:3017/p/" + encodeURIComponent(pid) + "?lang=zh", "_blank", "noopener");
+            window.open((function(){var h=location.hostname;return (h==="127.0.0.1"||h==="localhost")?"http://127.0.0.1:3017":"http://"+h+":3018";})() + "/p/" + encodeURIComponent(pid) + "?lang=zh", "_blank", "noopener");
           };
           // 立刻打开阅读器：TextFold 边生成边可读，不必等全部层级写完
           if (pid) { openReader(); setSending(false); }

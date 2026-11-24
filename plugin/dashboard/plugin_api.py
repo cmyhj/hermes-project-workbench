@@ -1918,6 +1918,15 @@ def textfold_start() -> Dict[str, Any]:
     return {"started": True, "slow": True}
 
 
+@router.get("/textfold/proxy")
+def textfold_proxy_status() -> Dict[str, Any]:
+    """跨设备阅读用的反向代理（3018 → 127.0.0.1:3017）。"""
+    info: Dict[str, Any] = {"enabled": "0" if _TF_PROXY is None else "1"}
+    if _TF_PROXY is not None:
+        info["bind"] = f"{_TF_PROXY.server_address[0]}:{_TF_PROXY.server_address[1]}"
+    return info
+
+
 @router.post("/textfold/stop")
 def textfold_stop() -> Dict[str, Any]:
     if not _tf_alive():
@@ -1942,3 +1951,15 @@ def textfold_stop() -> Dict[str, Any]:
 
 if _TF_IDLE_MIN > 0:
     _start_reaper()
+
+_TF_PROXY = None
+if os.environ.get("WB_PROJECT_TF_PROXY", "1") != "0":
+    try:
+        import importlib.util
+        _spec = importlib.util.spec_from_file_location(
+            "wb_tf_proxy", os.path.join(os.path.dirname(os.path.abspath(__file__)), "tf_proxy.py"))
+        _mod = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_mod)
+        _TF_PROXY = _mod.start()
+    except Exception:
+        _TF_PROXY = None

@@ -1777,8 +1777,56 @@ _PDF_MAGIC = b"%PDF-"
 _TF_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
+_TF_LAST = [time.time()]          # 最近一次代理调用（近似「有人在用」）
+_TF_IDLE_MIN = int(os.environ.get("WB_PROJECT_TEXTFOLD_IDLE_MINUTES", "60") or 0)
+
+
+def _tf_touch() -> None:
+    _TF_LAST[0] = time.time()
+
+
+def _tf_established() -> bool:
+    """3017 上是否还有已建立的连接（读者页面通常保活）。"""
+    try:
+        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, errors="replace", timeout=10).stdout or ""
+    except Exception:
+        return True                      # 查不到就当作有人在用，宁可不关
+    return any(":3017" in line and "ESTABLISHED" in line for line in out.splitlines())
+
+
+def _tf_jobs_busy() -> bool:
+    try:
+        jobs = _tf("/api/jobs", timeout=8)
+    except Exception:
+        return True
+    return any(j.get("status") in ("running", "queued") for j in (jobs if isinstance(jobs, list) else []))
+
+
+def _tf_reaper() -> None:
+    """空闲自动停：没人用、没有任务在跑、也没有打开的连接，才停。"""
+    while True:
+        time.sleep(60)
+        try:
+            if _TF_IDLE_MIN <= 0 or not _tf_alive():
+                continue
+            if time.time() - _TF_LAST[0] < _TF_IDLE_MIN * 60:
+                continue
+            if _tf_jobs_busy() or _tf_established():
+                _tf_touch()              # 有人在读，重新计时
+                continue
+            textfold_stop()
+        except Exception:
+            continue
+
+
+def _start_reaper() -> None:
+    thread = threading.Thread(target=_tf_reaper, name="textfold-idle-reaper", daemon=True)
+    thread.start()
+
+
 def _tf(path: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 60,
         raw: Optional[bytes] = None, headers: Optional[Dict[str, str]] = None):
+    _tf_touch()
     body = raw if raw is not None else (json.dumps(payload).encode("utf-8") if payload is not None else None)
     req = urllib.request.Request(TEXTFOLD_BASE + path, data=body,
                                  headers=headers or {"Content-Type": "application/json"})
@@ -1875,7 +1923,7 @@ def textfold_stop() -> Dict[str, Any]:
     port = urllib.parse.urlparse(TEXTFOLD_BASE).port or 3017
     pid = None
     if os.name == "nt":
-        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True).stdout
+        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, errors="replace").stdout or ""
         for line in out.splitlines():
             if f":{port}" in line and "LISTENING" in line:
                 pid = line.split()[-1]
@@ -1888,3 +1936,7 @@ def textfold_stop() -> Dict[str, Any]:
         if not _tf_alive():
             return {"stopped": True, "pid": pid}
     return {"stopped": True, "pid": pid, "slow": True}
+
+
+if _TF_IDLE_MIN > 0:
+    _start_reaper()

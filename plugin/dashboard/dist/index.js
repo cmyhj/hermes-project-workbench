@@ -529,11 +529,13 @@
           var openReader = function () {
             window.open("http://127.0.0.1:3017/p/" + encodeURIComponent(pid) + "?lang=zh", "_blank", "noopener");
           };
-          if (!job.id) { openReader(); setSending(false); return; }
+          // 立刻打开阅读器：TextFold 边生成边可读，不必等全部层级写完
+          if (pid) { openReader(); setSending(false); }
+          if (!job.id) { if (!pid) setSending(false); return; }
           var tick = function () {
             SDK.fetchJSON("/api/plugins/textfold/jobs/" + encodeURIComponent(job.id))
               .then(function (j) {
-                if (j.status === "done") { openReader(); setSending(false); }
+                if (j.status === "done") { if (!pid) openReader(); setSending(false); }
                 else if (j.status === "error") { setSending(false); window.alert("生成失败：" + (j.error || "")); }
                 else setTimeout(tick, 2000);
               })

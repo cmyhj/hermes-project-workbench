@@ -1778,7 +1778,7 @@ _TF_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 _TF_LAST = [time.time()]          # 最近一次代理调用（近似「有人在用」）
-_TF_IDLE_MIN = int(os.environ.get("WB_PROJECT_TEXTFOLD_IDLE_MINUTES", "20") or 0)
+_TF_IDLE_MIN = int(os.environ.get("WB_PROJECT_TEXTFOLD_IDLE_MINUTES", "3") or 0)
 
 
 def _tf_touch() -> None:

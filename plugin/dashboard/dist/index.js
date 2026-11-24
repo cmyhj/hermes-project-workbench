@@ -511,7 +511,7 @@
       fetch(blobUrl)
         .then(function (r) { return r.blob(); })
         .then(function (b) {
-          return SDK.authedFetch("/api/plugins/textfold/upload?name=" + encodeURIComponent(name) + "&lang=zh", {
+          return SDK.authedFetch("/api/plugins/wb-project/textfold/upload?name=" + encodeURIComponent(name) + "&lang=zh", {
             method: "POST",
             headers: { "Content-Type": "application/pdf" },
             body: b,
@@ -533,7 +533,7 @@
           if (pid) { openReader(); setSending(false); }
           if (!job.id) { if (!pid) setSending(false); return; }
           var tick = function () {
-            SDK.fetchJSON("/api/plugins/textfold/jobs/" + encodeURIComponent(job.id))
+            SDK.fetchJSON("/api/plugins/wb-project/textfold/jobs/" + encodeURIComponent(job.id))
               .then(function (j) {
                 if (j.status === "done") { if (!pid) openReader(); setSending(false); }
                 else if (j.status === "error") { setSending(false); window.alert("生成失败：" + (j.error || "")); }

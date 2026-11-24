@@ -34,6 +34,7 @@ import datetime as _dt
 import json
 import os
 import re
+import subprocess
 import tempfile
 import threading
 import time
@@ -43,7 +44,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -1763,3 +1764,127 @@ def project_pm_summary(project_id: str) -> Dict[str, Any]:
         "archived": bool(target.get("archived")),
         "read_only": bool(target.get("archived")),
     }
+
+
+# ---------------------------------------------------------------------------
+# TextFold：把预览里的 PDF 交给本机折读服务（127.0.0.1:3017）
+# 原先独立的「阅读」插件已移除，代理与进程控制留在这里，只服务本插件的预览按钮。
+# ---------------------------------------------------------------------------
+TEXTFOLD_BASE = os.environ.get("WB_PROJECT_TEXTFOLD_BASE") or "http://127.0.0.1:3017"
+TEXTFOLD_PY = os.environ.get("WB_PROJECT_TEXTFOLD_PY") or r"D:\DevTool	extfold-venv\Scripts\python.exe"
+TEXTFOLD_LOG = os.environ.get("WB_PROJECT_TEXTFOLD_LOG") or r"D:\DevTool	extfold-serve.log"
+_PDF_MAGIC = b"%PDF-"
+_TF_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def _tf(path: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 60,
+        raw: Optional[bytes] = None, headers: Optional[Dict[str, str]] = None):
+    body = raw if raw is not None else (json.dumps(payload).encode("utf-8") if payload is not None else None)
+    req = urllib.request.Request(TEXTFOLD_BASE + path, data=body,
+                                 headers=headers or {"Content-Type": "application/json"})
+    with _TF_OPENER.open(req, timeout=timeout) as resp:
+        data = resp.read()
+    try:
+        return json.loads(data.decode("utf-8", "replace"))
+    except ValueError:
+        return {"raw": data[:200].decode("utf-8", "replace")}
+
+
+def _tf_alive() -> bool:
+    try:
+        _tf("/api/models", timeout=5)
+        return True
+    except Exception:
+        return False
+
+
+@router.get("/textfold/health")
+def textfold_health() -> Dict[str, Any]:
+    try:
+        models = _tf("/api/models", timeout=6)
+        return {"running": True, "base": TEXTFOLD_BASE,
+                "selected": models.get("selected"), "selectedName": models.get("selectedName")}
+    except Exception:
+        return {"running": False, "base": TEXTFOLD_BASE}
+
+
+@router.post("/textfold/upload")
+async def textfold_upload(request: Request, name: str = "paper.pdf", lang: str = "zh") -> Dict[str, Any]:
+    """浏览器把预览中的 PDF 字节直接转给 TextFold（不落盘、不碰路径白名单）。"""
+    data = await request.body()
+    if not data.startswith(_PDF_MAGIC):
+        raise HTTPException(status_code=400, detail="只支持 PDF")
+    if len(data) > 80 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="文件超过 80 MB")
+    headers = {
+        "Content-Type": "application/pdf",
+        "X-Name": name.encode("utf-8").decode("latin-1", "ignore") or "paper.pdf",
+        "X-Lang": lang,
+    }
+    try:
+        return _tf("/api/files", raw=data, timeout=300, headers=headers)
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"TextFold 返回 {exc.code}")
+    except Exception:
+        # 没在跑就自动拉起，再试一次
+        try:
+            textfold_start()
+            return _tf("/api/files", raw=data, timeout=300, headers=headers)
+        except Exception:
+            raise HTTPException(status_code=502, detail="TextFold 启动失败：检查 D:\DevTool\textfold-venv")
+
+
+@router.get("/textfold/jobs/{job_id}")
+def textfold_job(job_id: str) -> Dict[str, Any]:
+    if not re.fullmatch(r"[A-Za-z0-9]{4,40}", job_id or ""):
+        raise HTTPException(status_code=400, detail="job id 形状非法")
+    try:
+        jobs = _tf("/api/jobs", timeout=15)
+    except Exception:
+        raise HTTPException(status_code=502, detail="TextFold 不可达")
+    for job in jobs if isinstance(jobs, list) else []:
+        if job.get("id") == job_id:
+            return job
+    raise HTTPException(status_code=404, detail="没有这个 job")
+
+
+@router.post("/textfold/start")
+def textfold_start() -> Dict[str, Any]:
+    if _tf_alive():
+        return {"started": False, "already": True}
+    if not os.path.isfile(TEXTFOLD_PY):
+        raise HTTPException(status_code=500, detail=f"找不到 TextFold 的 Python：{TEXTFOLD_PY}")
+    os.makedirs(os.path.dirname(TEXTFOLD_LOG) or ".", exist_ok=True)
+    log = open(TEXTFOLD_LOG, "ab")
+    flags = 0
+    if os.name == "nt":
+        flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
+    subprocess.Popen([TEXTFOLD_PY, "-m", "textfold", "serve"], stdout=log, stderr=log,
+                     stdin=subprocess.DEVNULL, creationflags=flags)
+    for _ in range(25):
+        time.sleep(0.8)
+        if _tf_alive():
+            return {"started": True}
+    return {"started": True, "slow": True}
+
+
+@router.post("/textfold/stop")
+def textfold_stop() -> Dict[str, Any]:
+    if not _tf_alive():
+        return {"stopped": False, "already": True}
+    port = urllib.parse.urlparse(TEXTFOLD_BASE).port or 3017
+    pid = None
+    if os.name == "nt":
+        out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True).stdout
+        for line in out.splitlines():
+            if f":{port}" in line and "LISTENING" in line:
+                pid = line.split()[-1]
+                break
+    if not pid:
+        raise HTTPException(status_code=500, detail=f"找不到监听 {port} 的进程")
+    subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True, timeout=20)
+    for _ in range(10):
+        time.sleep(0.5)
+        if not _tf_alive():
+            return {"stopped": True, "pid": pid}
+    return {"stopped": True, "pid": pid, "slow": True}

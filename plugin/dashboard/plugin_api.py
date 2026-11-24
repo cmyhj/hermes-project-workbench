@@ -1786,12 +1786,14 @@ def _tf_touch() -> None:
 
 
 def _tf_established() -> bool:
-    """3017 上是否还有已建立的连接（读者页面通常保活）。"""
+    """3017 上是否还有连接或最近的请求痕迹（读者页有 30s 心跳）。"""
     try:
         out = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, errors="replace", timeout=10).stdout or ""
     except Exception:
         return True                      # 查不到就当作有人在用，宁可不关
-    return any(":3017" in line and "ESTABLISHED" in line for line in out.splitlines())
+    # ESTABLISHED = 此刻挂着连接；TIME_WAIT/CLOSE_WAIT = 最近一两分钟刚发过请求
+    marks = ("ESTABLISHED", "TIME_WAIT", "CLOSE_WAIT")
+    return any(":3017" in line and any(m in line for m in marks) for line in out.splitlines())
 
 
 def _tf_jobs_busy() -> bool:

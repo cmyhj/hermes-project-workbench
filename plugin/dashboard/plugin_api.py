@@ -1771,8 +1771,8 @@ def project_pm_summary(project_id: str) -> Dict[str, Any]:
 # 原先独立的「阅读」插件已移除，代理与进程控制留在这里，只服务本插件的预览按钮。
 # ---------------------------------------------------------------------------
 TEXTFOLD_BASE = os.environ.get("WB_PROJECT_TEXTFOLD_BASE") or "http://127.0.0.1:3017"
-TEXTFOLD_PY = os.environ.get("WB_PROJECT_TEXTFOLD_PY") or r"D:\DevTool	extfold-venv\Scripts\python.exe"
-TEXTFOLD_LOG = os.environ.get("WB_PROJECT_TEXTFOLD_LOG") or r"D:\DevTool	extfold-serve.log"
+TEXTFOLD_PY = os.environ.get("WB_PROJECT_TEXTFOLD_PY") or "D:/DevTool/textfold-venv/Scripts/python.exe"
+TEXTFOLD_LOG = os.environ.get("WB_PROJECT_TEXTFOLD_LOG") or "D:/DevTool/textfold-serve.log"
 _PDF_MAGIC = b"%PDF-"
 _TF_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 

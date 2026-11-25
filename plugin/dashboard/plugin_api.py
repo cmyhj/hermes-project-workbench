@@ -1781,8 +1781,18 @@ _TF_LAST = [time.time()]          # 最近一次代理调用（近似「有人�
 _TF_IDLE_MIN = int(os.environ.get("WB_PROJECT_TEXTFOLD_IDLE_MINUTES", "3") or 0)
 
 
+_TF_ACTIVITY_FILE = os.environ.get("WB_PROJECT_TF_ACTIVITY") or "D:/DevTool/textfold-activity"
+
+
 def _tf_touch() -> None:
+    """记录一次真实使用；同时写文件，让别的进程（gateway 里的代理）也看得到。"""
     _TF_LAST[0] = time.time()
+    try:
+        with open(_TF_ACTIVITY_FILE, "a"):
+            pass
+        os.utime(_TF_ACTIVITY_FILE, None)
+    except OSError:
+        pass
 
 
 def _tf_established() -> bool:
@@ -1798,7 +1808,7 @@ def _tf_established() -> bool:
 
 def _tf_jobs_busy() -> bool:
     try:
-        jobs = _tf("/api/jobs", timeout=8)
+        jobs = _tf("/api/jobs", timeout=8, touch=False)
     except Exception:
         return True
     return any(j.get("status") in ("running", "queued") for j in (jobs if isinstance(jobs, list) else []))
@@ -1814,7 +1824,7 @@ def _tf_activity_ts() -> float:
         except Exception:
             pass
     try:                                  # 代理可能在另一个进程里（gateway）写这个文件
-        last = max(last, os.path.getmtime("D:/DevTool/textfold-activity"))
+        last = max(last, os.path.getmtime(_TF_ACTIVITY_FILE))
     except OSError:
         pass
     return last
@@ -1829,6 +1839,9 @@ def _tf_reaper() -> None:
     while True:
         time.sleep(30)
         try:
+            with open("D:/DevTool/textfold-reaper.log", "a", encoding="utf-8") as _trace:
+                _trace.write("%s alive=%s idle=%ds\n" % (
+                    time.strftime("%H:%M:%S"), _tf_alive(), int(time.time() - _tf_activity_ts())))
             if _TF_IDLE_MIN <= 0 or not _tf_alive():
                 continue
             if time.time() - _tf_activity_ts() < _TF_IDLE_MIN * 60:
@@ -1847,8 +1860,10 @@ def _start_reaper() -> None:
 
 
 def _tf(path: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 60,
-        raw: Optional[bytes] = None, headers: Optional[Dict[str, str]] = None):
-    _tf_touch()
+        raw: Optional[bytes] = None, headers: Optional[Dict[str, str]] = None,
+        touch: bool = True):
+    if touch:
+        _tf_touch()
     body = raw if raw is not None else (json.dumps(payload).encode("utf-8") if payload is not None else None)
     req = urllib.request.Request(TEXTFOLD_BASE + path, data=body,
                                  headers=headers or {"Content-Type": "application/json"})
@@ -1862,7 +1877,7 @@ def _tf(path: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 60
 
 def _tf_alive() -> bool:
     try:
-        _tf("/api/models", timeout=5)
+        _tf("/api/models", timeout=5, touch=False)
         return True
     except Exception:
         return False
@@ -1920,6 +1935,7 @@ def textfold_job(job_id: str) -> Dict[str, Any]:
 
 @router.post("/textfold/start")
 def textfold_start() -> Dict[str, Any]:
+    _tf_touch()                      # 手动启动也算一次真实使用，别刚起来就被回收
     if _tf_alive():
         return {"started": False, "already": True}
     if not os.path.isfile(TEXTFOLD_PY):

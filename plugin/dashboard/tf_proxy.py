@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import http.client
 import os
+import time
 import re
 import subprocess
 import threading
@@ -25,7 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TARGET_HOST = "127.0.0.1"
 TARGET_PORT = int(os.environ.get("WB_PROJECT_TEXTFOLD_PORT", "3017"))
-LISTEN_PORT = int(os.environ.get("WB_PROJECT_TF_PROXY_PORT", "3018"))
+LISTEN_PORT = int(os.environ.get("WB_PROJECT_TF_PROXY_PORT", "3019"))
 def _zerotier_ip() -> str:
     """取 ZeroTier 虚拟网卡的 IPv4；取不到就退回 only-localhost（宁可不暴露）。"""
     try:
@@ -51,6 +52,8 @@ def _zerotier_ip() -> str:
 
 LISTEN_HOST = os.environ.get("WB_PROJECT_TF_PROXY_BIND") or _zerotier_ip()
 
+LAST_ACTIVITY = [0.0]          # 最近一次被真实访问的时间
+ACTIVITY_FILE = os.environ.get("WB_PROJECT_TF_ACTIVITY") or "D:/DevTool/textfold-activity"
 _SKIP_REQUEST = {"host", "origin", "referer", "connection", "accept-encoding", "content-length"}
 _SKIP_RESPONSE = {"transfer-encoding", "content-length", "connection", "keep-alive"}
 
@@ -62,6 +65,13 @@ class Handler(BaseHTTPRequestHandler):
         return
 
     def _relay(self):
+        LAST_ACTIVITY[0] = time.time()
+        try:                              # 跨进程共享：mtime 即「刚被访问」
+            with open(ACTIVITY_FILE, "a"):
+                pass
+            os.utime(ACTIVITY_FILE, None)
+        except OSError:
+            pass
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else None
         headers = {k: v for k, v in self.headers.items() if k.lower() not in _SKIP_REQUEST}
@@ -101,12 +111,17 @@ class Handler(BaseHTTPRequestHandler):
     do_HEAD = _relay
 
 
-def start() -> ThreadingHTTPServer | None:
-    """后台线程起代理；起不来返回 None（不影响插件其它功能）。"""
-    try:
-        server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler)
-    except OSError:
-        return None
-    thread = threading.Thread(target=server.serve_forever, name="textfold-proxy", daemon=True)
-    thread.start()
-    return server
+def start() -> list:
+    """后台线程起代理（ZeroTier + 本机回环）；起不来就少起一个。"""
+    hosts = [LISTEN_HOST]
+    if LISTEN_HOST not in ("127.0.0.1", "0.0.0.0"):
+        hosts.append("127.0.0.1")
+    servers = []
+    for host in hosts:
+        try:
+            server = ThreadingHTTPServer((host, LISTEN_PORT), Handler)
+        except OSError:
+            continue
+        threading.Thread(target=server.serve_forever, name=f"textfold-proxy-{host}", daemon=True).start()
+        servers.append(server)
+    return servers

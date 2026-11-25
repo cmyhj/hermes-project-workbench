@@ -1804,17 +1804,37 @@ def _tf_jobs_busy() -> bool:
     return any(j.get("status") in ("running", "queued") for j in (jobs if isinstance(jobs, list) else []))
 
 
+def _tf_activity_ts() -> float:
+    """最近一次「有人真的在用」的时间：接口调用 或 代理被访问（阅读页心跳）。"""
+    last = _TF_LAST[0]
+    mod = globals().get("_TF_PROXY_MOD")
+    if mod is not None:
+        try:
+            last = max(last, float(mod.LAST_ACTIVITY[0]))
+        except Exception:
+            pass
+    try:                                  # 代理可能在另一个进程里（gateway）写这个文件
+        last = max(last, os.path.getmtime("D:/DevTool/textfold-activity"))
+    except OSError:
+        pass
+    return last
+
+
 def _tf_reaper() -> None:
-    """空闲自动停：没人用、没有任务在跑、也没有打开的连接，才停。"""
+    """空闲自动停：没人访问、也没有任务在跑，才停。
+
+    注意：不看 netstat。回收器自己每分钟探测 /api/jobs 会产生 TIME_WAIT，
+    用它当「有人在用」的判据会让服务永远停不下来（这正是之前停不掉的原因）。
+    """
     while True:
-        time.sleep(60)
+        time.sleep(30)
         try:
             if _TF_IDLE_MIN <= 0 or not _tf_alive():
                 continue
-            if time.time() - _TF_LAST[0] < _TF_IDLE_MIN * 60:
+            if time.time() - _tf_activity_ts() < _TF_IDLE_MIN * 60:
                 continue
-            if _tf_jobs_busy() or _tf_established():
-                _tf_touch()              # 有人在读，重新计时
+            if _tf_jobs_busy():
+                _tf_touch()              # 有任务在跑，重新计时
                 continue
             textfold_stop()
         except Exception:
@@ -1921,10 +1941,8 @@ def textfold_start() -> Dict[str, Any]:
 @router.get("/textfold/proxy")
 def textfold_proxy_status() -> Dict[str, Any]:
     """跨设备阅读用的反向代理（3018 → 127.0.0.1:3017）。"""
-    info: Dict[str, Any] = {"enabled": "0" if _TF_PROXY is None else "1"}
-    if _TF_PROXY is not None:
-        info["bind"] = f"{_TF_PROXY.server_address[0]}:{_TF_PROXY.server_address[1]}"
-    return info
+    binds = [f"{srv.server_address[0]}:{srv.server_address[1]}" for srv in (_TF_PROXY or [])]
+    return {"enabled": "1" if binds else "0", "bind": ", ".join(binds)}
 
 
 @router.post("/textfold/stop")
@@ -1952,7 +1970,8 @@ def textfold_stop() -> Dict[str, Any]:
 if _TF_IDLE_MIN > 0:
     _start_reaper()
 
-_TF_PROXY = None
+_TF_PROXY: list = []
+_TF_PROXY_MOD = None
 if os.environ.get("WB_PROJECT_TF_PROXY", "1") != "0":
     try:
         import importlib.util
@@ -1961,5 +1980,6 @@ if os.environ.get("WB_PROJECT_TF_PROXY", "1") != "0":
         _mod = importlib.util.module_from_spec(_spec)
         _spec.loader.exec_module(_mod)
         _TF_PROXY = _mod.start()
+        _TF_PROXY_MOD = _mod
     except Exception:
-        _TF_PROXY = None
+        _TF_PROXY = []

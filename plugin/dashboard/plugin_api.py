@@ -1839,11 +1839,16 @@ def _tf_reaper() -> None:
     while True:
         time.sleep(30)
         try:
-            with open("D:/DevTool/textfold-reaper.log", "a", encoding="utf-8") as _trace:
-                _trace.write("%s alive=%s idle=%ds\n" % (
-                    time.strftime("%H:%M:%S"), _tf_alive(), int(time.time() - _tf_activity_ts())))
             if _TF_IDLE_MIN <= 0 or not _tf_alive():
                 continue
+            try:                  # 只在「有东西可回收」时记一行，超 200KB 自动清空
+                if os.path.getsize("D:/DevTool/textfold-reaper.log") > 200_000:
+                    open("D:/DevTool/textfold-reaper.log", "w").close()
+                with open("D:/DevTool/textfold-reaper.log", "a", encoding="utf-8") as _trace:
+                    _trace.write("%s idle=%ds\n" % (
+                        time.strftime("%H:%M:%S"), int(time.time() - _tf_activity_ts())))
+            except OSError:
+                pass
             if time.time() - _tf_activity_ts() < _TF_IDLE_MIN * 60:
                 continue
             if _tf_jobs_busy():
